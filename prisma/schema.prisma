@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+enum CrawlMode {
+  STATIC
+  PLAYWRIGHT
+}
+
+enum AdType {
+  IFRAME
+  SCRIPT
+  IMAGE
+  SPONSORED_LABEL
+  OUTBOUND_LINK
+}
+
+enum CrawlStatus {
+  OK
+  FAIL
+  SKIP
+}
+
+enum JobStatus {
+  RUNNING
+  OK
+  FAIL
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFIED
+  CONTACTED
+  IGNORE
+}
+
+model Source {
+  id               String   @id @default(cuid())
+  name             String
+  baseUrl          String   @unique
+  enabled          Boolean  @default(true)
+  crawlMode        CrawlMode @default(STATIC)
+  seeds            String[] @default([])
+  sitemapUrl       String?
+  rssUrl           String?
+  includePatterns  String[] @default([])
+  excludePatterns  String[] @default([])
+  maxPagesPerRun   Int      @default(50)
+  crawlDelayMsMin  Int      @default(2000)
+  crawlDelayMsMax  Int      @default(5000)
+  userAgent        String   @default("ArmanetAdPoacher/1.0")
+  blockedReason    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  pages            Page[]
+  observations     AdObservation[]
+  crawlLogs        CrawlLog[]
+}
+
+model Page {
+  id             String   @id @default(cuid())
+  sourceId       String
+  url            String
+  lastFetchedAt  DateTime?
+  lastStatusCode Int?
+  contentHash    String?
+  fetchDurationMs Int?
+  errorText      String?
+  source         Source   @relation(fields: [sourceId], references: [id])
+  @@unique([sourceId, url])
+}
+
+model AdObservation {
+  id                   String   @id @default(cuid())
+  sourceId             String
+  pageUrl              String
+  observedAt           DateTime @default(now())
+  adType               AdType
+  rawHtmlSnippet       String
+  evidenceUrl          String
+  screenshotPath       String?
+  extractedClickUrl    String?
+  extractedDestDomain  String?
+  extractedBrandText   String?
+  confidence           Float
+  signature            String
+  source               Source   @relation(fields: [sourceId], references: [id])
+  @@unique([sourceId, signature])
+  @@index([extractedDestDomain])
+}
+
+model Advertiser {
+  id            String   @id @default(cuid())
+  name          String?
+  primaryDomain String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  leads         Lead?
+}
+
+model Lead {
+  id                  String    @id @default(cuid())
+  advertiserId        String    @unique
+  score               Int
+  scoreBreakdown      Json
+  firstSeenAt         DateTime
+  lastSeenAt          DateTime
+  sightings7d         Int
+  uniquePublishers7d  Int
+  avgConfidenceTop5   Float
+  topEvidence         Json
+  status              LeadStatus @default(NEW)
+  notes               String?
+  advertiser          Advertiser @relation(fields: [advertiserId], references: [id])
+}
+
+model CrawlLog {
+  id          String     @id @default(cuid())
+  sourceId    String
+  url         String
+  status      CrawlStatus
+  statusCode  Int?
+  errorClass  String?
+  errorText   String?
+  durationMs  Int
+  createdAt   DateTime   @default(now())
+  source      Source     @relation(fields: [sourceId], references: [id])
+  @@index([sourceId, createdAt])
+}
+
+model JobRun {
+  id         String    @id @default(cuid())
+  jobName    String
+  sourceId   String?
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  status     JobStatus
+  stats      Json
+  source     Source?  @relation(fields: [sourceId], references: [id])
+  @@index([jobName, startedAt])
+}
