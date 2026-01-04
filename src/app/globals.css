@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background-color: #0b1021;
+}
+
+body {
+  color: #e2e8f0;
+  background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.2), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.18), transparent 35%),
+    #0b1021;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+input, select, textarea {
+  color: #0b1021;
+}
